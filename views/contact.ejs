@@ -2,7 +2,14 @@
     <div class="row">
         <div class="col-md-8">
             <h2>Daftar Contact</h2>
-            
+                
+                <a href="/contact/add" class="btn btn-primary mb-3">Get New Data Contact</a>
+
+                <% if (msg.length !== 0) { %>
+                    <div class="alert alert-success" role="alert"><%= msg %></div>
+                <% } %>
+
+
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
@@ -14,6 +21,15 @@
                     </tr>
                   </thead>
                   <tbody>
+                      <% if (contacts.length === 0) { %>
+                        <tr>
+                            <td colspan="5">
+                                <div class="alert alert-danger fw-bold" role="alert">    
+                                    Data Contact is Empty.
+                                </div>
+                            </td>
+                        </tr>
+                      <% } %>
                       <% contacts.forEach((contact, i) => {i++ %>
                         <tr>
                             <th scope="row"><%= i++ %> </th>
