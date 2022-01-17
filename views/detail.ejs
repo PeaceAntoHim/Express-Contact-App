@@ -14,7 +14,9 @@
                   <h5 class="card-title"><%= contact.nama %></h5>
                   <h6 class="card-subtitle mb-2 text-muted"><%= contact.nohp %></h6>
                   <p class="card-text"><%= contact.email %></p>
-                  <a href="/contact" class="card-link">&laquo; Return to contact</a>
+                  <a href="/contact/edit/<%= contact.nama %>" class="btn btn-warning badge">Edit</a>
+                  <a href="/contact/delete/<%= contact.nama %>" class="btn btn-danger badge" onclick="return confirm('Are you sure?');">Hapus</a>
+                  <a href="/contact" class="card-link d-block mt-3">&laquo; Return to contact</a>
                 </div>
               </div>
               <% } %> 

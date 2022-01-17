@@ -1,6 +1,6 @@
 const express = require('express');
 const expressLayouts = require('express-ejs-layouts');
-const { loadContact, findContact, addContact, cekDuplikat } = require('./utils/contacts');
+const { loadContact, findContact, addContact, cekDuplikat, deleteContact, updateContacts } = require('./utils/contacts');
 const { body, validationResult, check } =require('express-validator');
 // Require data for made flash messages
 const session = require('express-session');
@@ -124,6 +124,75 @@ app.post('/contact', [
 });
 
 
+/* Fitur Delete in card contact */
+app.get('/contact/delete/:nama', (req, res) => {
+    const contact = findContact(req.params.nama);
+
+
+    // If contact not found
+    if(!contact) {
+        res.status(400); 
+        res.send('<h1>404</h1>');
+    } else {
+        // res.send('ok');
+        deleteContact(req.params.nama);
+        req.flash('msg', 'Data Contact has sucessfully added');
+        res.redirect('/contact');
+    }
+});
+
+/* Form edit contact data */
+app.get('/contact/edit/:nama', (req, res) => {
+    const contact = findContact(req.params.nama);
+
+    res.render('edit-contact', {
+        title: 'Form edit contact data',
+        layout: 'layouts/main-layout',
+        contact,
+    });
+});
+
+
+
+
+/* Process edit data */
+app.post('/contact/update', 
+    [
+        body('nama').custom((value, { req }) => {
+            const duplikat = cekDuplikat(value);
+            // Pengecekan data duplikat
+            if(value !== req.body.oldNama && duplikat) {
+                throw new Error('Name of contact is already in used');
+            }
+            return true;
+        }),
+    // Proses Validasi email dan no hp
+    check('email', 'Email not valid').isEmail(),
+    check('nohp', 'Phone number not valid').isMobilePhone('id-ID')
+    ], (req, res) => {
+    const errors = validationResult(req);
+        // Pengecekan data kosong
+    if(!errors.isEmpty()) {
+        // return res.status(400).json({errors: errors.array() });
+        res.render('edit-contact', {
+            title: 'Form Edit Data!',
+            layout: 'layouts/main-layout',
+            errors: errors.array(),
+            contact: req.body,
+        });
+    } else {
+        // res.send(req.body);
+        updateContacts(req.body);
+        // Kirimkan flash message
+        req.flash('msg', 'Data contact was edited!');
+        res.redirect('/contact');
+        }
+    }
+);
+
+
+
+
 /* Halaman detail contact */
 app.get('/contact/:nama', (req, res) => {
     const contact = findContact(req.params.nama);
@@ -133,6 +202,8 @@ app.get('/contact/:nama', (req, res) => {
         contact,
     });
 });
+
+
 
 /* Halaman kosong */
 app.use((req, res) => {
