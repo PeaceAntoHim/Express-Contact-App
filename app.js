@@ -1,24 +1,14 @@
 const express = require('express');
 const expressLayouts = require('express-ejs-layouts');
-const morgan = require('morgan');
+const { loadContact, findContact } = require('./utils/contacts');
+
 const app = express();
 const port = 3000;
 
-/* Aplication Level Middleware */
-app.use((req, res, next) => {
-    console.log('Time: ', Date.now());
-    next();
-});
-
-
 // Gunakan ejs 
 app.set('view engine', 'ejs');
-app.use(expressLayouts);
-
 // Third party Middlewere
 app.use(expressLayouts);
-app.use(morgan('dev'));
-
 // Built in middlewere
 app.use(express.static('public'));
 
@@ -49,7 +39,7 @@ app.get('/', (req, res) => {
             mahasiswa,
         });
     });
-           
+/* Membuat page about */         
 app.get('/about', (req, res) => {
     // res.sendFile('./about.html', {root: __dirname});
     res.render('about', {
@@ -57,18 +47,25 @@ app.get('/about', (req, res) => {
         layout: 'layouts/main-layout', 
     });
 });
+
+/* Membuat page Contact */
 app.get('/contact', (req, res) => {
-    // res.send('This is a contact page!');
-    // res.sendFile('/contact.html', {root: __dirname});
+    const contacts = loadContact();
     res.render('contact', {
+        title: 'Halaman Contact',
         layout: 'layouts/main-layout',
-        title: 'Halaman Contact'});
+        contacts,
+    });
 });
 
-
-app.get('/product/:id', (req, res) => {
-    res.send(`Product ID : ${req.params.id} <br> Category: ${req.query.category}`);
-}); 
+app.get('/contact/:nama', (req, res) => {
+    const contact = findContact(req.params.nama);
+    res.render('detail', {
+        title: 'Halaman Detail Contact',
+        layout: 'layouts/main-layout',
+        contact,
+    });
+});
 
 
 app.use((req, res) => {
