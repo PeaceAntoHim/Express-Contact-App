@@ -32,10 +32,32 @@ app.get('/', (req, res) => {
     res.render('index', {
         nama: 'Frans Sebastian',
         layout: 'layouts/main-layout',
-        title: 'Halaman Home',
+        title: 'Home Page',
         mahasiswa,
     });
 });
+
+/* Halaman About */
+app.get('/about', (req, res) => {
+    res.render('about', {
+        title: 'Halaman About',
+        layout: 'layouts/main-layout',
+    });
+});
+
+
+/* Halaman Contact */
+app.get('/contact', (req, res) => {
+    const contacts = loadContact();
+
+    res.render('contact', {
+        title: 'Contact Page',
+        layout: 'layouts/main-layout',
+        contacts,
+        msg: req.flsah('msg'),
+    });
+});
+
 
 
 
