@@ -1,203 +1,245 @@
 const express = require('express');
 const expressLayouts = require('express-ejs-layouts');
-const { loadContact, findContact, addContact, cekDuplikat, deleteContact, updateContacts } = require('./utils/contacts');
-const { body, validationResult, check } =require('express-validator');
-// Require data for made flash messages
+/* Load data validation */
+const {
+    body,
+    validationResult,
+    check
+} = require('express-validator');
+/* Load Data Override */
+const methodOverride = require('method-override');
+
+/* load to data npm flash */
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const flash = require('connect-flash');
 
 
+require('./utils/db');
+const Contact = require('./model/contact');
+
+
 const app = express();
 const port = 3000;
 
-// Gunakan ejs 
-app.set('view engine', 'ejs');
-// Third party Middlewere
-app.use(expressLayouts);
-// Built in middlewere
-app.use(express.static('public'));
-app.use(express.urlencoded({ extended: true }));
 
-/* Configuration for settings flash message with middlewere*/
+/* Setup method override */
+app.use(methodOverride('_method'));
+
+
+
+/* Setup EJS */
+app.set('view engine', 'ejs');
+app.use(expressLayouts);
+app.use(express.static('public'));
+app.use(express.urlencoded({
+    extended: true
+}));
+
+/* Config to flash */
 app.use(cookieParser('secret'));
 app.use(
     session({
-        cookie: {maxAge: 6000},
+        cookie: {
+            maxAge: 6000
+        },
         secret: 'secret',
-        reserve: true,
+        resave: true,
         saveUninitialized: true,
     })
 );
 app.use(flash());
 
+
+
 /* Berbagai Respon yang dapat diggunakan oleh express */
 app.get('/', (req, res) => {
 
-        // res.sendFile('./index.html', {root: __dirname });
-        const mahasiswa =  [
-            {
-                nama: 'Frans Sebastian',
-                email: 'stefanusfranssebastian@gmail.com'
-            },
-            {
-                nama: 'Kurniawan',
-                email: 'kurinawancore@gmail.com',
-            },
-            {
-                nama: 'Agung Lesmana',
-                email: 'agunglestay@mail.com',
-            },
-            
-        ];
-        res.render('index', { 
+    // res.sendFile('./index.html', {root: __dirname });
+    const mahasiswa = [{
             nama: 'Frans Sebastian',
-            layout: 'layouts/main-layout',
-            title: 'Halaman Home',
-            mahasiswa,
-        });
-    });
-/* Membuat page about */         
-app.get('/about', (req, res) => {
-    // res.sendFile('./about.html', {root: __dirname});
-    res.render('about', {
-        title: 'Halaman About',
-        layout: 'layouts/main-layout', 
+            email: 'stefanusfranssebastian@gmail.com'
+        },
+        {
+            nama: 'Kurniawan',
+            email: 'kurinawancore@gmail.com',
+        },
+        {
+            nama: 'Agung Lesmana',
+            email: 'agunglestay@mail.com',
+        },
+
+    ];
+    res.render('index', {
+        nama: 'Frans Sebastian',
+        layout: 'layouts/main-layout',
+        title: 'Home Page',
+        mahasiswa,
     });
 });
 
-/* Membuat page Contact */
-app.get('/contact', (req, res) => {
-    const contacts = loadContact();
+/* Halaman About */
+app.get('/about', (req, res) => {
+    res.render('about', {
+        title: 'Halaman About',
+        layout: 'layouts/main-layout',
+    });
+});
+
+
+/* Halaman Contact */
+app.get('/contact', async (req, res) => {
+    /* Contact.find().then((contact) => {
+        res.send(contact);
+    }); */
+
+    const contacts = await Contact.find();
+
     res.render('contact', {
-        title: 'Halaman Contact',
+        title: 'Contact Page',
         layout: 'layouts/main-layout',
         contacts,
         msg: req.flash('msg'),
     });
 });
 
-/* Halaman Form tambah data Contact */
-    app.get('/contact/add', (req, res) => {
-        res.render('add-contact', {
-        title: 'Form Get New Data Contact',
+/* Halaman form tambah data contact */
+app.get('/contact/add', (req, res) => {
+    res.render('add-contact', {
+        title: 'Form get New Contact Data',
         layout: 'layouts/main-layout',
-        });
     });
+});
 
-
-/* Proses Menangkap Data Contact */
-app.post('/contact', [
-    body('nama').custom((value) => {
-        const duplikat = cekDuplikat(value);
-        // Pengecekan data duplikat
-        if(duplikat) {
-            throw new Error('Name of contact is already in used');
+// Proses tambah data contact
+app.post(
+    '/contact',
+    [
+        body('nama').custom(async (value) => {
+            const duplikat = await Contact.findOne({
+                nama: value
+            });
+            if (duplikat) {
+                throw new Error('Name contact already registered!');
+            }
+            return true;
+        }),
+        check('email', 'Email not valid!').isEmail(),
+        check('nohp', 'No HP tidak valid!').isMobilePhone('id-ID'),
+    ],
+    (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.render('add-contact', {
+                title: 'Form add new contact data',
+                layout: 'layouts/main-layout',
+                errors: errors.array(),
+            });
+        } else {
+            Contact.insertMany(req.body, (error, result) => {
+                /* Kirimkan flesh message */
+                req.flash('msg', 'Data contact successfully added!');
+                res.redirect('/contact');
+            });
         }
-        return true;
-    }),
-    // Proses Validasi email dan no hp
-    check('email', 'Email not valid').isEmail(),
-    check('nohp', 'Phone number not valid').isMobilePhone('id-ID')
-    ], (req, res) => {
-    const errors = validationResult(req);
-        // Pengecekan data kosong
-    if(!errors.isEmpty()) {
-        // return res.status(400).json({errors: errors.array() });
-        res.render('add-contact', {
-            title: 'Form Get New Data!',
-            layout: 'layouts/main-layout',
-            errors: errors.array(),
+    }
+);
+
+/* Proses delete contact Cara pertama*/
+/* app.get('/contact/delete/:nama', async (req, res) => {
+        const contact = await Contact.findOne({
+            nama: req.params.nama
         });
-    } else {
-        addContact(req.body);
-        // Kirimkan flash message
-        req.flash('msg', 'New data contact was added!');
+        if (!contact) {
+            res.status(404);
+            res.send('<h1>404</h1>');
+        } else {
+            Contact.deleteOne({
+                _id: contact._id
+            }).then((result) => {
+                req.flash('msg', 'Data contact has been deleted');
+                res.redirect('/contact');
+            });
+        }
+    });
+ */
+/* Proses delete data contact cara kedua */
+app.delete('/contact', (req, res) => {
+    Contact.deleteOne({
+        nama: req.body.nama
+    }).then((result) => {
+        req.flash('msg', 'Data contact berhasil dihapus');
         res.redirect('/contact');
-    }
-
-
-
-    // res.send(req.body);
-    // addContact(req.body);
-    // res.redirect('/contact');
+    });
 });
 
-
-/* Fitur Delete in card contact */
-app.get('/contact/delete/:nama', (req, res) => {
-    const contact = findContact(req.params.nama);
-
-
-    // If contact not found
-    if(!contact) {
-        res.status(400); 
-        res.send('<h1>404</h1>');
-    } else {
-        // res.send('ok');
-        deleteContact(req.params.nama);
-        req.flash('msg', 'Data Contact has sucessfully added');
-        res.redirect('/contact');
-    }
-});
-
-/* Form edit contact data */
-app.get('/contact/edit/:nama', (req, res) => {
-    const contact = findContact(req.params.nama);
-
+/* Halaman form edit data contact*/
+app.get('/contact/edit/:nama', async (req, res) => {
+    const contact = await Contact.findOne({
+        nama: req.params.nama
+    });
     res.render('edit-contact', {
-        title: 'Form edit contact data',
+        title: 'Form edit contact',
         layout: 'layouts/main-layout',
         contact,
     });
 });
 
-
-
-
-/* Process edit data */
-app.post('/contact/update', 
+/* Proses Ubah data */
+app.put(
+    '/contact',
     [
-        body('nama').custom((value, { req }) => {
-            const duplikat = cekDuplikat(value);
-            // Pengecekan data duplikat
-            if(value !== req.body.oldNama && duplikat) {
-                throw new Error('Name of contact is already in used');
+        body('nama').custom(async (value, {
+            req
+        }) => {
+            const duplikat = await Contact.findOne({
+                nama: value
+            });
+            if (value !== req.body.oldNama && duplikat) {
+                throw new Error('Name contact was already registered!');
             }
             return true;
         }),
-    // Proses Validasi email dan no hp
-    check('email', 'Email not valid').isEmail(),
-    check('nohp', 'Phone number not valid').isMobilePhone('id-ID')
-    ], (req, res) => {
-    const errors = validationResult(req);
-        // Pengecekan data kosong
-    if(!errors.isEmpty()) {
-        // return res.status(400).json({errors: errors.array() });
-        res.render('edit-contact', {
-            title: 'Form Edit Data!',
-            layout: 'layouts/main-layout',
-            errors: errors.array(),
-            contact: req.body,
-        });
-    } else {
-        // res.send(req.body);
-        updateContacts(req.body);
-        // Kirimkan flash message
-        req.flash('msg', 'Data contact was edited!');
-        res.redirect('/contact');
+        check('email', 'Email not valid!').isEmail(),
+        check('nohp', 'No Hp not valid').isMobilePhone('id-ID'),
+    ],
+    (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            res.render('edit-contact', {
+                title: 'Edit form data',
+                layout: 'layouts/main-layout',
+                errors: errors.array(),
+                contact: req.body,
+            });
+        } else {
+            Contact.updateOne({
+                _id: req.body._id
+            }, {
+                $set: {
+                    nama: req.body.nama,
+                    email: req.body.email,
+                    nohp: req.body.nohp,
+                },
+            }).then((result) => {
+                // Kirimkan flash message
+                req.flash('msg', 'Data Contact Berhasil di ubah');
+                res.redirect('/contact');
+            });
         }
     }
 );
 
 
 
-
 /* Halaman detail contact */
-app.get('/contact/:nama', (req, res) => {
-    const contact = findContact(req.params.nama);
+app.get('/contact/:nama', async (req, res) => {
+    const contact = await Contact.findOne({
+        nama: req.params.nama
+    });
+
     res.render('detail', {
-        title: 'Halaman Detail Contact',
+        title: 'Detail contact page',
         layout: 'layouts/main-layout',
         contact,
     });
@@ -205,15 +247,7 @@ app.get('/contact/:nama', (req, res) => {
 
 
 
-/* Halaman kosong */
-app.use((req, res) => {
-    res.status(404);
-    res.send('<h1>404</h1>');
-});
-
-
 /* Port to development evironment */
 app.listen(port, () => {
     console.log(`Example app listening att https://localhost:${port}`);
 });
-
